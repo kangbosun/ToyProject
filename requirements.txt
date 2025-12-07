@@ -1,0 +1,4 @@
+PyOpenGL
+PyOpenGL-accelerate
+imgui[glfw]
+numpy
