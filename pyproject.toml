@@ -1,0 +1,13 @@
+[project]
+name = "toyproject"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "imgui>=2.0.0",
+    "numpy>=2.3.5",
+    "pillow>=12.0.0",
+    "pyopengl>=3.1.10",
+    "pyopengl-accelerate>=3.1.10",
+]

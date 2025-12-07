@@ -1,0 +1,14 @@
+class UnitSetting:
+    def __init__(self, speed=2.0):
+        self.move_speed = speed
+        self.move_duration = 2.0
+        self.rest_duration = 2.0
+        self.hunger_rate = 5.0
+        self.detection_radius = 1.5
+
+class WorldSetting:
+    def __init__(self, width=5, height=5):
+        self.field_size = (width, height)
+        self.cat_setting = UnitSetting(speed=2.0)
+        self.hamster_setting = UnitSetting(speed=2.0)
+        self.hamster_count = 10
