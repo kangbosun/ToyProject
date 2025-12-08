@@ -10,6 +10,8 @@ class UnitSetting:
 class WorldSetting:
     def __init__(self, width=5, height=5):
         self.field_size = (width, height)
-        self.cat_setting = UnitSetting(speed=2.0)
+        self.cat_setting = UnitSetting(speed=2.5)
+        self.cat_setting.move_duration = 3.0
         self.hamster_setting = UnitSetting(speed=2.0)
-        self.hamster_count = 10
+        self.hamster_count = 15
+        self.cat_count = 1

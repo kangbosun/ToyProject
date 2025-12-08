@@ -62,7 +62,7 @@ class World:
         
         scale = 0.25
         if is_baby:
-             scale /= 3.0
+             scale /= 1.5
              
         hamster.transform.scale.Set(scale) 
         
@@ -100,13 +100,24 @@ class World:
             self.spawn_hamster(rx, ry)
             
         # Cat
-        cat = Object(name="Cat")
-        cat.set_mesh(self.quad_mesh)
-        cat.set_material(self.materials["cat"])
-        cat.transform.position.SetY(2.0)
-        cat.transform.scale.Set(0.5)
-        cat.add_component(CatAIComponent(self))
-        self.scene_manager.add_object(cat)
+        for i in range(self.setting.cat_count):
+            cat = Object(name=f"Cat {i}")
+            cat.set_mesh(self.quad_mesh)
+            cat.set_material(self.materials["cat"])
+            
+            # Random position (optional) or Fixed? 
+            # Original was fixed at (0, 2.0). 
+            # If multiple, let's randomize or offset.
+            # Randomize slightly to avoid stacking perfectly.
+            # import random # Already imported at module level
+            rx = random.uniform(-width/2 + 1, width/2 - 1)
+            ry = random.uniform(-height/2 + 1, height/2 - 1)
+            
+            cat.transform.position.SetX(rx)
+            cat.transform.position.SetY(ry)
+            cat.transform.scale.Set(0.5)
+            cat.add_component(CatAIComponent(self))
+            self.scene_manager.add_object(cat)
         
     def tick(self, dt):
         self.scene_manager.tick(dt)

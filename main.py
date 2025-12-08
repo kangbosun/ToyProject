@@ -161,7 +161,7 @@ def display():
     if gui_adapter:
         gui_adapter.new_frame()
         
-        from ui.game_ui import render_ui
+        from ui.game_ui import render_ui, render_status_bars
         # Pass world components to UI
         reset_req = render_ui(gui_adapter.width, gui_adapter.height, 
                               world.scene_manager if world else None, 
@@ -169,6 +169,11 @@ def display():
                               renderer, 
                               world.selected_object if world else None)
         
+        # Render Overlays (HP Bars)
+        if world:
+             viewport = glGetIntegerv(GL_VIEWPORT)
+             render_status_bars(world.scene_manager, current_view_matrix, current_proj_matrix, viewport)
+
         if reset_req and world:
             world.reset()
         
