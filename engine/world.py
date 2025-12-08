@@ -113,7 +113,16 @@ class World:
                         min_dist = dist
                         clicked_obj = obj
             
+            # Deselect previous
+            if self.selected_object:
+                self.selected_object.is_selected = False
+
             self.selected_object = clicked_obj
+            
+            # Select new
+            if self.selected_object:
+                self.selected_object.is_selected = True
+                
             # print(f"Selected: {self.selected_object.name if self.selected_object else 'None'}")
             
         except Exception as e:

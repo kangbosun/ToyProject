@@ -4,6 +4,7 @@ from OpenGL.GL import *
 class Object:
     def __init__(self, name="Object"):
         self.name = name
+        self.is_selected = False
         self.enable_collision_event = True
         self.transform = Transform()
         self.mesh = None

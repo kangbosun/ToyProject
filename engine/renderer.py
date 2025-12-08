@@ -62,8 +62,9 @@ class Renderer:
             mesh.draw()
             
     def render_debug(self, scene_manager, view_matrix, proj_matrix):
-        if not self.show_aabb and not self.show_sphere:
-            return
+        # Always run debug pass for selection highlight
+        # if not self.show_aabb and not self.show_sphere:
+        #    return
             
         glUseProgram(0) # Fixed function pipeline
         glDisable(GL_TEXTURE_2D)
@@ -101,6 +102,19 @@ class Renderer:
                 glVertex3f(bounds[2], bounds[3], 0.0)
                 glVertex3f(bounds[0], bounds[3], 0.0)
                 glEnd()
+
+            # Draw Selection (Yellow)
+            if hasattr(obj, 'is_selected') and obj.is_selected:
+                bounds = obj.get_world_bounds()
+                glColor3f(1.0, 1.0, 0.0) # Yellow
+                glLineWidth(2.0)
+                glBegin(GL_LINE_LOOP)
+                glVertex3f(bounds[0], bounds[1], 0.0)
+                glVertex3f(bounds[2], bounds[1], 0.0)
+                glVertex3f(bounds[2], bounds[3], 0.0)
+                glVertex3f(bounds[0], bounds[3], 0.0)
+                glEnd()
+                glLineWidth(1.0)
                 
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_TEXTURE_2D)
