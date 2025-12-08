@@ -7,29 +7,26 @@ class BaseAIComponent(Component):
         super().__init__()
         self.world_setting = world_setting
         self.scene_manager = scene_manager
+        
+        # Copy stats from setting (Decoupling)
+        setting = self.get_initial_setting()
+        self.move_speed = setting.move_speed if setting else 1.0
+        self.move_duration = setting.move_duration if setting else 2.0
+        self.rest_duration = setting.rest_duration if setting else 2.0
+        
         self.state_timer = 0.0
         self.is_moving = False
         self.direction = (0, 0)
         # Defaults
         self.is_moving = True
-        self.state_timer = self.get_move_duration()
+        self.state_timer = self.move_duration
         self.randomize_direction()
 
-    def get_setting(self):
+    def get_initial_setting(self):
         return None 
 
-    def get_speed(self):
-        s = self.get_setting()
-        return s.move_speed if s else 1.0
-
-    def get_move_duration(self):
-        s = self.get_setting()
-        return s.move_duration if s else 2.0
-
-    def get_rest_duration(self):
-        s = self.get_setting()
-        return s.rest_duration if s else 2.0
-
+    # Removed get_speed, get_move_duration etc to use instance vars directly
+    
     def randomize_direction(self):
         angle = random.uniform(0, 6.28318)
         self.direction = (math.cos(angle), math.sin(angle))
@@ -44,10 +41,10 @@ class BaseAIComponent(Component):
         if self.state_timer <= 0:
             self.is_moving = not self.is_moving
             if self.is_moving:
-                self.state_timer = self.get_move_duration()
+                self.state_timer = self.move_duration
                 self.randomize_direction()
             else:
-                self.state_timer = self.get_rest_duration()
+                self.state_timer = self.rest_duration
         
         # Move Logic
         if self.is_moving:
@@ -57,7 +54,7 @@ class BaseAIComponent(Component):
         dx, dy = self.direction
         current_x = self.owner.transform.position.X()
         current_y = self.owner.transform.position.Y()
-        speed = self.get_speed()
+        speed = self.move_speed
         
         step_x = dx * speed * dt
         step_y = dy * speed * dt
@@ -94,12 +91,14 @@ class BaseAIComponent(Component):
             self.owner.transform.position.SetY(old_y + ndy * speed * dt)
 
 class CatAIComponent(BaseAIComponent):
+    def get_initial_setting(self):
+        return self.world_setting.cat_setting
+
     def __init__(self, world_setting, scene_manager=None):
         super().__init__(world_setting, scene_manager)
         self.satiety = 50.0
-
-    def get_setting(self):
-        return self.world_setting.cat_setting
+        # Cat specific stats
+        self.hunger_rate = self.get_initial_setting().hunger_rate if self.get_initial_setting() else 5.0
 
     def feed(self, amount):
         self.satiety += amount
@@ -117,7 +116,7 @@ class CatAIComponent(BaseAIComponent):
         
     def tick(self, dt):
         # Hunger Logic
-        rate = self.get_setting().hunger_rate
+        rate = self.hunger_rate
         self.satiety -= rate * dt
         if self.satiety < 0: 
             self.satiety = 0
@@ -171,14 +170,18 @@ class CatAIComponent(BaseAIComponent):
         super().move(dt)
 
 class HamsterAIComponent(BaseAIComponent):
-    def get_setting(self):
+    def get_initial_setting(self):
         return self.world_setting.hamster_setting
+    
+    def __init__(self, world_setting, scene_manager=None):
+        super().__init__(world_setting, scene_manager)
+        self.detection_radius = self.get_initial_setting().detection_radius if self.get_initial_setting() else 1.5
 
     def tick(self, dt):
         # Flee Logic
         if self.scene_manager:
             my_pos = (self.owner.transform.position.X(), self.owner.transform.position.Y())
-            detection_range = self.get_setting().detection_radius
+            detection_range = self.detection_radius
             
             # Find nearest Cat
             nearest_cat = None

@@ -1,6 +1,6 @@
 import imgui
 
-def render_ui(window_width, window_height, scene_manager=None, world_setting=None, renderer=None):
+def render_ui(window_width, window_height, scene_manager=None, world_setting=None, renderer=None, selected_object=None):
     # Fixed Layout: Right side, 250px width, full height
     panel_width = 250
     imgui.set_next_window_position(window_width - panel_width, 0)
@@ -89,12 +89,50 @@ def render_ui(window_width, window_height, scene_manager=None, world_setting=Non
                 if val_hc > 100: val_hc = 100
                 world_setting.hamster_count = val_hc
                 
-    if imgui.collapsing_header("Debug Visualization", flags=imgui.TREE_NODE_DEFAULT_OPEN)[0]:
         if renderer:
             _, renderer.show_aabb = imgui.checkbox("Show AABB (Red)", renderer.show_aabb)
             _, renderer.show_sphere = imgui.checkbox("Show Sphere (Green)", renderer.show_sphere)
         
     imgui.end()
+
+    # Inspector Window (Top Left)
+    if selected_object:
+        imgui.set_next_window_position(10, 10, imgui.ONCE)
+        imgui.set_next_window_size(200, 300, imgui.ONCE)
+        imgui.begin("Inspector", flags=imgui.WINDOW_NO_COLLAPSE)
+        
+        imgui.text(f"Name: {selected_object.name}")
+        imgui.separator()
+        
+        # Icon
+        if hasattr(selected_object, 'material') and selected_object.material and selected_object.material.texture_id:
+            # Display image (texture_id, width, height)
+            # Use fixed size for icon
+            imgui.image(selected_object.material.texture_id, 64, 64, uv0=(0, 1), uv1=(1, 0))
+            imgui.separator()
+            
+        # Stats
+        # Try to find AI Component
+        from game_objects.components.ai_component import BaseAIComponent, CatAIComponent, HamsterAIComponent
+        
+        # We need to access components. Object doesn't expose list easily but has get_component
+        # Let's try casting
+        ai = selected_object.get_component(BaseAIComponent)
+        if ai:
+            imgui.text("AI Stats:")
+            imgui.text(f"State: {'Moving' if ai.is_moving else 'Resting'}")
+            imgui.text(f"Move Speed: {ai.move_speed:.1f}")
+            imgui.text(f"Move Duration: {ai.move_duration:.1f}")
+            imgui.text(f"Rest Duration: {ai.rest_duration:.1f}")
+            
+            if isinstance(ai, CatAIComponent):
+                imgui.text(f"Satiety: {ai.satiety:.1f}")
+                imgui.text(f"Hunger Rate: {ai.hunger_rate:.1f}")
+                
+            if isinstance(ai, HamsterAIComponent):
+                imgui.text(f"Detect Radius: {ai.detection_radius:.1f}")
+
+        imgui.end()
 
     # Log History Window (Bottom)
     log_height = 150
@@ -106,11 +144,6 @@ def render_ui(window_width, window_height, scene_manager=None, world_setting=Non
         # Show last 10 logs visible or scroll
         for log in scene_manager.logs[-50:]: # Simple display
              imgui.text(log)
-        
-        # Auto scroll removed due to API mismatch
-        # if imgui.get_scroll_y() >= imgui.get_scroll_max_y():
-        #    imgui.set_scroll_here(1.0)
-            
     imgui.end()
     
     return reset_requested

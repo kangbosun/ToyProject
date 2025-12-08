@@ -1,115 +1,50 @@
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 import sys
+import math
+import numpy as np
 import imgui
-from engine.mesh import Mesh
-from engine.material import Material
-from game_objects.object import Object
-from utils.imgui_adapter import ImGuiAdapter
-
-from engine.camera import Camera
-from engine.world_setting import WorldSetting
-from engine.scene_manager import SceneManager
 from engine.renderer import Renderer
-from game_objects.components.ai_component import CatAIComponent, HamsterAIComponent
+from engine.world import World
+from utils.imgui_adapter import ImGuiAdapter
 import time
 
 # Global variables
-scene_manager = None
+world = None
 renderer = None
 gui_adapter = None
-camera = None
-world_setting = None
-last_time = 0
 
 # Metrics
+last_time = 0
 last_calc_time = 0
 current_sps = 0
 
+# Input State
+mouse_down = False
+last_mouse_pos = (0, 0)
+current_view_matrix = None
+current_proj_matrix = None
+
 def init():
-    global scene_manager, renderer, gui_adapter, camera, world_setting, last_time, \
-           quad_mesh, wood_material, mouse_material, cat_material, \
-           last_calc_time, current_sps
+    global world, renderer, gui_adapter, last_time, last_calc_time, current_sps
     
     glClearColor(0.2, 0.3, 0.3, 1.0)
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    glEnable(GL_DEPTH_TEST) # Enable Depth Test for Z-ordering
+    glEnable(GL_DEPTH_TEST)
 
     # Initialize ImGui
     gui_adapter = ImGuiAdapter(1280, 720)
     
-    # Initialize Camera
-    camera = Camera(position=(0, 0, 10))
+    # Initialize World
+    world = World(1280, 720)
+    world.load_assets()
+    world.reset()
     
-    # Initialize World Settings
-    world_setting = WorldSetting(5, 5)
-    
-    # Initialize Scene Manager
-    scene_manager = SceneManager()
     renderer = Renderer()
 
-
-    # Initialize Resources (Shared)
-    quad_mesh = Mesh.create_quad()
-    mouse_material = Material("assets/shaders/default.vert", "assets/shaders/default.frag", "assets/textures/mouse.png")
-    wood_material = Material("assets/shaders/default.vert", "assets/shaders/default.frag", "assets/textures/woodtile.png")
-    cat_material = Material("assets/shaders/default.vert", "assets/shaders/default.frag", "assets/textures/cat.png")
-
-    init_world()
-    
     last_time = time.time()
     last_calc_time = time.time()
-
-def init_world():
-    global scene_manager, world_setting, quad_mesh, wood_material, mouse_material, cat_material
-    
-    scene_manager.clear()
-    
-    # Generate Field Tiles
-    width, height = world_setting.field_size
-    
-    tile = Object(name="Floor")
-    tile.set_mesh(quad_mesh)
-    tile.set_material(wood_material)
-    tile.enable_collision_event = False
-
-    tile.transform.scale.SetX(width)
-    tile.transform.scale.SetY(height)
-    tile.transform.position.SetZ(-0.1)
-    tile.uv_scale = (width, height)
-    scene_manager.add_object(tile)
-
-    import random
-    
-    for i in range(world_setting.hamster_count):
-        hamster = Object(name=f"Hamster {i}")
-        hamster.set_mesh(quad_mesh)
-        hamster.set_material(mouse_material)
-        
-        # Random Position within field bounds
-        # Field is centered at 0,0 with size (width, height)
-        # Random Range: [-width/2, width/2]
-        half_w = width / 2.0
-        half_h = height / 2.0
-        
-        rx = random.uniform(-half_w + 1, half_w - 1)
-        ry = random.uniform(-half_h + 1, half_h - 1)
-        
-        hamster.transform.position.SetX(rx)
-        hamster.transform.position.SetY(ry)
-        hamster.transform.scale.Set(0.25) 
-        hamster.add_component(HamsterAIComponent(world_setting, scene_manager))
-        scene_manager.add_object(hamster)
-    
-    # Cat Object
-    cat = Object(name="Cat")
-    cat.set_mesh(quad_mesh)
-    cat.set_material(cat_material)
-    cat.transform.position.SetY(2.0) 
-    cat.transform.scale.Set(0.5)
-    cat.add_component(CatAIComponent(world_setting, scene_manager))
-    scene_manager.add_object(cat)
 
 def reshape(w, h):
     glViewport(0, 0, w, h)
@@ -120,51 +55,55 @@ def keyboard(key, x, y):
     if gui_adapter:
         gui_adapter.keyboard(key, x, y)
 
-# Input State
-is_dragging = False
-last_mouse_pos = (0, 0)
-
 def mouse(button, state, x, y):
-    global is_dragging, last_mouse_pos
+    global last_mouse_pos, mouse_down
     
-    if gui_adapter:
-        gui_adapter.mouse(button, state, x, y)
-        if imgui.get_io().want_capture_mouse:
-            is_dragging = False
-            return
+    if imgui.get_io().want_capture_mouse:
+        if gui_adapter:
+            gui_adapter.mouse(button, state, x, y)
+        return
 
-    # Use Right Mouse Button for Panning
     if button == GLUT_RIGHT_BUTTON:
         if state == GLUT_DOWN:
-            is_dragging = True
+            mouse_down = True
             last_mouse_pos = (x, y)
         elif state == GLUT_UP:
-            is_dragging = False
+            mouse_down = False
+            
+    if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
+         # Raycast Selection delegate to World
+         viewport = glGetIntegerv(GL_VIEWPORT)
+         if world:
+             world.select_object(x, y, current_view_matrix, current_proj_matrix, viewport)
+
+    if gui_adapter:
+        gui_adapter.mouse(button, state, x, y)
 
 def motion(x, y):
-    global is_dragging, last_mouse_pos
+    global mouse_down, last_mouse_pos
     
     if gui_adapter:
         gui_adapter.motion(x, y)
     
-    if is_dragging and camera:
+    if mouse_down and world and world.camera:
         dx = x - last_mouse_pos[0]
         dy = y - last_mouse_pos[1]
         
         viewport = glGetIntegerv(GL_VIEWPORT)
         screen_h = viewport[3] if viewport[3] > 0 else 720
         
-        world_scale = camera.ortho_size / screen_h
+        cam = world.camera
+        world_scale = cam.ortho_size / screen_h
         
-        world_dx = dx * world_scale / camera.zoom
-        world_dy = dy * world_scale / camera.zoom
+        world_dx = dx * world_scale / cam.zoom
+        world_dy = dy * world_scale / cam.zoom
         
         # Move camera OPPOSITE to drag
-        new_x = camera.transform.position.X() - world_dx
-        new_y = camera.transform.position.Y() + world_dy 
+        new_x = cam.transform.position.X() - world_dx
+        new_y = cam.transform.position.Y() + world_dy 
         
-        camera.transform.position.SetX(new_x)
-        camera.transform.position.SetY(new_y)
+        cam.transform.position.SetX(new_x)
+        cam.transform.position.SetY(new_y)
         
         last_mouse_pos = (x, y)
 
@@ -174,18 +113,17 @@ def mouse_wheel(wheel, direction, x, y):
         if imgui.get_io().want_capture_mouse:
             return
 
-    if camera:
+    if world and world.camera:
+        cam = world.camera
         zoom_speed = 0.5
-        new_size = camera.ortho_size - (direction * zoom_speed)
+        new_size = cam.ortho_size - (direction * zoom_speed)
         if new_size < 0.1: new_size = 0.1
         if new_size > 50.0: new_size = 50.0
         
-        camera.ortho_size = new_size
-
-
+        cam.ortho_size = new_size
 
 def display():
-    global last_time
+    global last_time, current_view_matrix, current_proj_matrix
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     
     # Calculate Delta Time
@@ -193,21 +131,29 @@ def display():
     dt = current_time - last_time
     last_time = current_time
     
-    # Sync Game Logic (Main Thread)
-    if scene_manager:
-        scene_manager.tick(dt)
-        queue = scene_manager.get_render_queue()
+    # Sync Game Logic
+    if world:
+        world.tick(dt)
+        queue = world.scene_manager.get_render_queue()
         if renderer:
             renderer.submit_queue(queue)
     
-    # Get Camera Matrices
-    view = camera.get_view_matrix()
-    if gui_adapter:
-        projection = camera.get_projection_matrix(gui_adapter.width, gui_adapter.height)
-    else:
-        projection = camera.get_projection_matrix(1280, 720) # Fallback
+    # Get Camera Matrices from World
+    view = np.identity(4)
+    projection = np.identity(4)
+    
+    if world and world.camera:
+        view = world.camera.get_view_matrix()
+        if gui_adapter:
+             projection = world.camera.get_projection_matrix(gui_adapter.width, gui_adapter.height)
+        else:
+             projection = world.camera.get_projection_matrix(1280, 720)
 
-    # Render Scene (Main Thread)
+    # Store for Selection
+    current_view_matrix = view
+    current_proj_matrix = projection
+    
+    # Render Scene
     if renderer:
         renderer.render(view, projection)
     
@@ -215,19 +161,22 @@ def display():
     if gui_adapter:
         gui_adapter.new_frame()
         
-        # Use separated UI module
         from ui.game_ui import render_ui
-        reset_req = render_ui(gui_adapter.width, gui_adapter.height, scene_manager, world_setting, renderer)
+        # Pass world components to UI
+        reset_req = render_ui(gui_adapter.width, gui_adapter.height, 
+                              world.scene_manager if world else None, 
+                              world.setting if world else None, 
+                              renderer, 
+                              world.selected_object if world else None)
         
-        if reset_req:
-            init_world()
+        if reset_req and world:
+            world.reset()
         
         gui_adapter.render()
         
     # Debug Render
-    if renderer:
-        # Re-get matrices if needed, or reuse from above (vars 'view' and 'projection' are available)
-        renderer.render_debug(scene_manager, view, projection)
+    if renderer and world:
+        renderer.render_debug(world.scene_manager, view, projection)
     
     glutSwapBuffers()
     glutPostRedisplay()
@@ -238,13 +187,11 @@ def main():
     glutInitContextProfile(GLUT_COMPATIBILITY_PROFILE)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     
-    # Updated resolution
     glutInitWindowSize(1280, 720)
     glutCreateWindow(b"ImGui + OpenGL")
     
     init()
     
-    # Callbacks
     glutDisplayFunc(display)
     glutReshapeFunc(reshape)
     glutKeyboardFunc(keyboard)
