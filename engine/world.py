@@ -120,7 +120,9 @@ class World:
             self.scene_manager.add_object(cat)
         
     def tick(self, dt):
-        self.scene_manager.tick(dt)
+        # Apply Time Scale
+        scaled_dt = dt * self.setting.time_scale
+        self.scene_manager.tick(scaled_dt)
 
     def select_object(self, x, y, view_matrix, proj_matrix, viewport):
         if view_matrix is None or proj_matrix is None:

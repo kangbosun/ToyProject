@@ -75,6 +75,14 @@ def render_ui(window_width, window_height, scene_manager=None, world_setting=Non
             fs = world_setting.field_size
             imgui.text(f"Field: {fs[0]}x{fs[1]}")
             
+            # Time Scale
+            changed_ts, val_ts = imgui.input_float("Time Scale", world_setting.time_scale)
+            if changed_ts:
+                # Clamp to reasonable values to prevent physics explosion
+                if val_ts < 0.0: val_ts = 0.0 
+                if val_ts > 10.0: val_ts = 10.0
+                world_setting.time_scale = val_ts
+            
             # Move Speed
             # changed, val = imgui.slider_float("Move Speed", world_setting.move_speed, 0.1, 10.0)
             # if changed:

@@ -55,6 +55,18 @@ def keyboard(key, x, y):
     if gui_adapter:
         gui_adapter.keyboard(key, x, y)
 
+def keyboard_up(key, x, y):
+    if gui_adapter:
+        gui_adapter.keyboard_up(key, x, y)
+
+def special(key, x, y):
+    if gui_adapter:
+        gui_adapter.special(key, x, y)
+
+def special_up(key, x, y):
+    if gui_adapter:
+        gui_adapter.special_up(key, x, y)
+
 def mouse(button, state, x, y):
     global last_mouse_pos, mouse_down
     
@@ -200,6 +212,9 @@ def main():
     glutDisplayFunc(display)
     glutReshapeFunc(reshape)
     glutKeyboardFunc(keyboard)
+    glutKeyboardUpFunc(keyboard_up)
+    glutSpecialFunc(special)
+    glutSpecialUpFunc(special_up)
     glutMouseFunc(mouse)
     glutMouseWheelFunc(mouse_wheel)
     glutMotionFunc(motion)
