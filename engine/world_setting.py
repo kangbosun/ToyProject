@@ -5,6 +5,7 @@ class UnitSetting:
         self.rest_duration = 2.0
         self.hunger_rate = 5.0
         self.detection_radius = 1.5
+        self.mating_search_range = 3.0
 
 class WorldSetting:
     def __init__(self, width=5, height=5):

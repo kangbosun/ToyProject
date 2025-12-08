@@ -81,6 +81,10 @@ def render_ui(window_width, window_height, scene_manager=None, world_setting=Non
             changed_hdr, val_hdr = imgui.slider_float("Detect Radius##Hamster", world_setting.hamster_setting.detection_radius, 0.5, 5.0)
             if changed_hdr:
                 world_setting.hamster_setting.detection_radius = val_hdr
+
+            changed_hmr, val_hmr = imgui.slider_float("Mating Range##Hamster", world_setting.hamster_setting.mating_search_range, 1.0, 10.0)
+            if changed_hmr:
+                world_setting.hamster_setting.mating_search_range = val_hmr
             
             changed_hc, val_hc = imgui.input_int("Count##Hamster", world_setting.hamster_count)
             if changed_hc:
@@ -130,7 +134,13 @@ def render_ui(window_width, window_height, scene_manager=None, world_setting=Non
                 imgui.text(f"Hunger Rate: {ai.hunger_rate:.1f}")
                 
             if isinstance(ai, HamsterAIComponent):
+                imgui.text(f"Gender: {'Male' if ai.gender == 0 else 'Female'}")
+                imgui.text(f"Age: {'Adult' if ai.is_adult else 'Baby'}")
+                if not ai.is_adult:
+                    imgui.text(f"Growth: {ai.growth_timer:.1f}/10.0")
+                imgui.text(f"Repro Cooldown: {ai.repro_timer:.1f}")
                 imgui.text(f"Detect Radius: {ai.detection_radius:.1f}")
+                imgui.text(f"Mating Range: {ai.repro_range:.1f}")
 
         imgui.end()
 

@@ -14,7 +14,7 @@ import math
 
 class World:
     def __init__(self, screen_width, screen_height):
-        self.setting = WorldSetting(5, 5)
+        self.setting = WorldSetting(10, 10)
         self.scene_manager = SceneManager()
         self.camera = Camera(position=(0, 0, 10))
         
@@ -49,21 +49,55 @@ class World:
         self.scene_manager.add_object(tile)
         
         # Hamsters
+    def spawn_hamster(self, x, y, is_baby=False):
+        # Unique Name
+        idx = len([o for o in self.scene_manager.objects if "Hamster" in o.name])
+        name_prefix = "Baby Hamster" if is_baby else "Hamster"
+        hamster = Object(name=f"{name_prefix} {idx}")
+        hamster.set_mesh(self.quad_mesh)
+        hamster.set_material(self.materials["mouse"])
+        
+        hamster.transform.position.SetX(x)
+        hamster.transform.position.SetY(y)
+        
+        scale = 0.25
+        if is_baby:
+             scale /= 3.0
+             
+        hamster.transform.scale.Set(scale) 
+        
+        ai = HamsterAIComponent(self) # Pass World instance
+        if is_baby:
+            ai.is_adult = False
+            ai.scale_ref = 0.25 # Full size
+        
+        hamster.add_component(ai)
+        self.scene_manager.add_object(hamster)
+
+    def reset(self):
+        self.scene_manager.clear()
+        self.selected_object = None
+        
+        width, height = self.setting.field_size
+        
+        # Floor
+        tile = Object(name="Floor")
+        tile.set_mesh(self.quad_mesh)
+        tile.set_material(self.materials["wood"])
+        tile.enable_collision_event = False
+        tile.transform.scale.SetX(width)
+        tile.transform.scale.SetY(height)
+        tile.transform.position.SetZ(-0.1)
+        tile.uv_scale = (width, height)
+        self.scene_manager.add_object(tile)
+        
+        # Hamsters
         for i in range(self.setting.hamster_count):
-            hamster = Object(name=f"Hamster {i}")
-            hamster.set_mesh(self.quad_mesh)
-            hamster.set_material(self.materials["mouse"])
-            
             half_w = width / 2.0
             half_h = height / 2.0
             rx = random.uniform(-half_w + 1, half_w - 1)
             ry = random.uniform(-half_h + 1, half_h - 1)
-            
-            hamster.transform.position.SetX(rx)
-            hamster.transform.position.SetY(ry)
-            hamster.transform.scale.Set(0.25) 
-            hamster.add_component(HamsterAIComponent(self.setting, self.scene_manager))
-            self.scene_manager.add_object(hamster)
+            self.spawn_hamster(rx, ry)
             
         # Cat
         cat = Object(name="Cat")
@@ -71,7 +105,7 @@ class World:
         cat.set_material(self.materials["cat"])
         cat.transform.position.SetY(2.0)
         cat.transform.scale.Set(0.5)
-        cat.add_component(CatAIComponent(self.setting, self.scene_manager))
+        cat.add_component(CatAIComponent(self))
         self.scene_manager.add_object(cat)
         
     def tick(self, dt):
@@ -85,8 +119,11 @@ class World:
         winY = float(viewport[3] - y)
         
         try:
-            view_d = np.ascontiguousarray(view_matrix, dtype=np.float64)
-            proj_d = np.ascontiguousarray(proj_matrix, dtype=np.float64)
+            # Transpose matrices for gluUnProject (which expects Column-Major memory layout)
+            # The matrices from Camera are designed for Row-Major (GL_TRUE transpose) upload,
+            # so they have translation in the 'wrong' place for raw Column-Major reading.
+            view_d = np.ascontiguousarray(view_matrix.transpose(), dtype=np.float64)
+            proj_d = np.ascontiguousarray(proj_matrix.transpose(), dtype=np.float64)
             
             # Unproject to Z=0 plane
             world_x_near, world_y_near, world_z_near = gluUnProject(winX, winY, 0.0, view_d, proj_d, viewport)
